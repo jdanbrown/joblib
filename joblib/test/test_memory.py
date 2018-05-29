@@ -414,12 +414,38 @@ def test_persistence(tmpdir):
 
     h = pickle.loads(pickle.dumps(g))
 
+    # All attrs should have roundtripped
+    #   - Except .timestamp, because we drop it in __reduce__
+    #   - Compare .store_backend by its .location
+    assert {
+        **h.__dict__,
+        'store_backend': h.store_backend.location,
+        'timestamp': None,
+    } == {
+        **g.__dict__,
+        'store_backend': g.store_backend.location,
+        'timestamp': None,
+    }
+
     func_id, args_id = h._get_output_identifiers(1)
     output_dir = os.path.join(h.store_backend.location, func_id, args_id)
     assert os.path.exists(output_dir)
     assert output == h.store_backend.load_item([func_id, args_id])
     memory2 = pickle.loads(pickle.dumps(memory))
     assert memory.store_backend.location == memory2.store_backend.location
+
+    # All attrs should have roundtripped
+    #   - Except .timestamp, because we drop it in __reduce__
+    #   - Compare .store_backend by its .location
+    assert {
+        **memory.__dict__,
+        'store_backend': memory.store_backend.location,
+        'timestamp': None,
+    } == {
+        **memory2.__dict__,
+        'store_backend': memory2.store_backend.location,
+        'timestamp': None,
+    }
 
     # Smoke test that pickling a memory with location=None works
     memory = Memory(location=None, verbose=0)
