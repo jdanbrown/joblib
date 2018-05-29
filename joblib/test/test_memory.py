@@ -408,8 +408,8 @@ def test_func_dir(tmpdir):
 
 def test_persistence(tmpdir):
     # Test the memorized functions can be pickled and restored.
-    memory = Memory(location=tmpdir.strpath, verbose=0)
-    g = memory.cache(f)
+    memory = Memory(location=tmpdir.strpath, verbose=0, invalidate_on_code_change=False)
+    g = memory.cache(f, verbose=0)
     output = g(1)
 
     h = pickle.loads(pickle.dumps(g))

@@ -524,8 +524,10 @@ class MemorizedFunc(Logger):
             if v == type(self.store_backend):
                 backend = k
                 break
-        return (self.__class__, (self.func, location, backend, self.ignore,
-                self.mmap_mode, self.compress, self._verbose))
+        return (self.__class__,
+                (self.func, location, backend, self.ignore, self.mmap_mode,
+                 self.compress, self._verbose),
+                {'invalidate_on_code_change': self.invalidate_on_code_change})
 
     # ------------------------------------------------------------------------
     # Private interface
@@ -974,5 +976,7 @@ class Memory(Logger):
         cachedir = None
         compress = self.store_backend.compress \
             if self.store_backend is not None else False
-        return (self.__class__, (location, self.backend, cachedir,
-                                 self.mmap_mode, compress, self._verbose))
+        return (self.__class__,
+                (location, self.backend, cachedir,
+                 self.mmap_mode, compress, self._verbose),
+                {'invalidate_on_code_change': self.invalidate_on_code_change})
