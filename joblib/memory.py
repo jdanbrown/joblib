@@ -507,7 +507,13 @@ class MemorizedFunc(Logger):
             depending from it.
             In addition, when unpickling, we run the __init__
         """
-        return (self.__class__, (self.func, self.store_backend, self.ignore,
+        location = self.store_backend.location
+        backend = None
+        for k, v in _STORE_BACKENDS.items():
+            if v == type(self.store_backend):
+                backend = k
+                break
+        return (self.__class__, (self.func, location, backend, self.ignore,
                 self.mmap_mode, self.compress, self._verbose))
 
     # ------------------------------------------------------------------------
@@ -935,7 +941,8 @@ class Memory(Logger):
         # We need to remove 'joblib' from the end of cachedir
         location = (repr(self.store_backend)[:-7]
                     if self.store_backend is not None else None)
+        cachedir = None
         compress = self.store_backend.compress \
             if self.store_backend is not None else False
-        return (self.__class__, (location, self.backend, self.mmap_mode,
-                                 compress, self._verbose))
+        return (self.__class__, (location, self.backend, cachedir,
+                                 self.mmap_mode, compress, self._verbose))
