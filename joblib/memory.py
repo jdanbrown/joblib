@@ -383,7 +383,7 @@ class MemorizedFunc(Logger):
 
     def __init__(self, func, location, backend='local', ignore=None,
                  mmap_mode=None, compress=False, verbose=1,
-                 invalidate_on_code_change=True, timestamp=None):
+                 invalidate_on_code_change=True, log=None, timestamp=None):
         Logger.__init__(self)
         self.mmap_mode = mmap_mode
         self.compress = compress
@@ -393,6 +393,7 @@ class MemorizedFunc(Logger):
         self.ignore = ignore
         self._verbose = verbose
         self.invalidate_on_code_change = invalidate_on_code_change
+        self.log = log  # HACK HACK HACK
 
         # retrieve store object from backend type and location.
         self.store_backend = _store_backend_factory(backend, location,
@@ -448,6 +449,8 @@ class MemorizedFunc(Logger):
         # FIXME: The statements below should be try/excepted
         if not (self._check_previous_func_code(stacklevel=4) and
                 self.store_backend.contains_item([func_id, args_id])):
+            if self._verbose == -1:
+                self.log.char('info', '!')  # HACK HACK HACK
             if self._verbose > 10:
                 _, name = get_func_name(self.func)
                 self.warn('Computing func {0}, argument hash {1} '
@@ -459,16 +462,18 @@ class MemorizedFunc(Logger):
             if self.mmap_mode is not None:
                 # Memmap the output at the first call to be consistent with
                 # later calls
-                if self._verbose:
+                if self._verbose > 0:
                     msg = _format_load_msg(func_id, args_id,
                                            timestamp=self.timestamp,
                                            metadata=metadata)
                 out = self.store_backend.load_item([func_id, args_id], msg=msg,
                                                    verbose=self._verbose)
         else:
+            if self._verbose == -1:
+                self.log.char('info', '•')  # HACK HACK HACK
             try:
                 t0 = time.time()
-                if self._verbose:
+                if self._verbose > 0:
                     msg = _format_load_msg(func_id, args_id,
                                            timestamp=self.timestamp,
                                            metadata=metadata)
@@ -527,7 +532,11 @@ class MemorizedFunc(Logger):
         return (self.__class__,
                 (self.func, location, backend, self.ignore, self.mmap_mode,
                  self.compress, self._verbose),
-                {'invalidate_on_code_change': self.invalidate_on_code_change})
+                {
+                    'invalidate_on_code_change': self.invalidate_on_code_change,
+                    'log': self.log,  # HACK HACK HACK
+                },
+               )
 
     # ------------------------------------------------------------------------
     # Private interface
@@ -722,6 +731,7 @@ class MemorizedFunc(Logger):
             this_duration_limit: float
                 Max execution time for this function before issuing a warning.
         """
+
         start_time = time.time()
         argument_dict = filter_args(self.func, self.ignore,
                                     args, kwargs)
@@ -736,23 +746,33 @@ class MemorizedFunc(Logger):
 
         this_duration = time.time() - start_time
         if this_duration > this_duration_limit:
-            # This persistence should be fast. It will not be if repr() takes
-            # time and its output is large, because json.dump will have to
-            # write a large file. This should not be an issue with numpy arrays
-            # for which repr() always output a short representation, but can
-            # be with complex dictionaries. Fixing the problem should be a
-            # matter of replacing repr() above by something smarter.
-            warnings.warn("Persisting input arguments took %.2fs to run.\n"
-                          "If this happens often in your code, it can cause "
-                          "performance problems \n"
-                          "(results will be correct in all cases). \n"
-                          "The reason for this is probably some large input "
-                          "arguments for a wrapped\n"
-                          " function (e.g. large strings).\n"
-                          "THIS IS A JOBLIB ISSUE. If you can, kindly provide "
-                          "the joblib's team with an\n"
-                          " example so that they can fix the problem."
-                          % this_duration, stacklevel=5)
+
+            # HACK(db): Emit a one-line warning, because it happens often and I don't _think_ it's a problem...
+            self.log.warn(
+                'MemorizeFunc._persist_input was slow[%.2fs]: func_id[%s], args_id[%s], duration[%s], input_repr[%s]' % (
+                    this_duration, func_id, args_id, duration, str(input_repr)[:500],
+                ),
+            )
+
+            # HACK(db): Disable this
+            # # This persistence should be fast. It will not be if repr() takes
+            # # time and its output is large, because json.dump will have to
+            # # write a large file. This should not be an issue with numpy arrays
+            # # for which repr() always output a short representation, but can
+            # # be with complex dictionaries. Fixing the problem should be a
+            # # matter of replacing repr() above by something smarter.
+            # warnings.warn("Persisting input arguments took %.2fs to run.\n"
+            #               "If this happens often in your code, it can cause "
+            #               "performance problems \n"
+            #               "(results will be correct in all cases). \n"
+            #               "The reason for this is probably some large input "
+            #               "arguments for a wrapped\n"
+            #               " function (e.g. large strings).\n"
+            #               "THIS IS A JOBLIB ISSUE. If you can, kindly provide "
+            #               "the joblib's team with an\n"
+            #               " example so that they can fix the problem."
+            #               % this_duration, stacklevel=5)
+
         return metadata
 
     # XXX: Need a method to check if results are available.
@@ -836,7 +856,7 @@ class Memory(Logger):
 
     def __init__(self, location=None, backend='local', cachedir=None,
                  mmap_mode=None, compress=False, verbose=1, bytes_limit=None,
-                 backend_options={}, invalidate_on_code_change=True):
+                 backend_options={}, invalidate_on_code_change=True, log=None):
         # XXX: Bad explanation of the None value of cachedir
         Logger.__init__(self)
         self._verbose = verbose
@@ -845,6 +865,7 @@ class Memory(Logger):
         self.bytes_limit = bytes_limit
         self.backend = backend
         self.invalidate_on_code_change = invalidate_on_code_change
+        self.log = log  # HACK HACK HACK
         if compress and mmap_mode is not None:
             warnings.warn('Compressed results cannot be memmapped',
                           stacklevel=2)
@@ -928,6 +949,7 @@ class Memory(Logger):
         return MemorizedFunc(func, self.store_backend, mmap_mode=mmap_mode,
                              ignore=ignore, verbose=verbose,
                              invalidate_on_code_change=self.invalidate_on_code_change,
+                             log=self.log,  # HACK HACK HACK
                              timestamp=self.timestamp)
 
     def clear(self, warn=True):
@@ -979,4 +1001,8 @@ class Memory(Logger):
         return (self.__class__,
                 (location, self.backend, cachedir,
                  self.mmap_mode, compress, self._verbose),
-                {'invalidate_on_code_change': self.invalidate_on_code_change})
+                {
+                    'invalidate_on_code_change': self.invalidate_on_code_change,
+                    'log': self.log,  # HACK HACK HACK
+                },
+               )
