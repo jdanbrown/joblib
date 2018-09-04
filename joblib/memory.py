@@ -449,7 +449,8 @@ class MemorizedFunc(Logger):
         # FIXME: The statements below should be try/excepted
         if not (self._check_previous_func_code(stacklevel=4) and
                 self.store_backend.contains_item([func_id, args_id])):
-            self.log.char('debug', '!')  # HACK HACK HACK
+            self.log.char('info', '!')  # HACK HACK HACK
+            self.log.char('debug', ' %s\n' % func_id)  # HACK HACK HACK
             if self._verbose > 10:
                 _, name = get_func_name(self.func)
                 self.warn('Computing func {0}, argument hash {1} '
@@ -468,7 +469,8 @@ class MemorizedFunc(Logger):
                 out = self.store_backend.load_item([func_id, args_id], msg=msg,
                                                    verbose=self._verbose)
         else:
-            self.log.char('debug', '•')  # HACK HACK HACK
+            self.log.char('info', '•')  # HACK HACK HACK
+            self.log.char('debug', ' %s\n' % func_id)  # HACK HACK HACK
             try:
                 t0 = time.time()
                 if self._verbose > 0:
