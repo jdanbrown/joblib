@@ -140,6 +140,10 @@ def _build_func_identifier(func):
     else:
         parts.append(_get_func_fullname(func))
 
+    # HACK HACK HACK Include version in dir name, for easier cache management
+    version = getattr(func, '_cache_version', None)  # HACK HACK HACK Smuggled in from bubo/features/cache.py
+    parts[-1] = '%s(version=%s)' % (parts[-1], version)
+
     # We reuse historical fs-like way of building a function identifier
     return os.path.join(*parts)
 
